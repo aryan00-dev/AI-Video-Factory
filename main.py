@@ -2,7 +2,9 @@ import os
 import requests
 from gtts import gTTS
 
-NVIDIA_API_KEY = os.environ.get("NVIDIA_API_KEY")
+# Yahan .strip() laga diya hai, jo apne aap extra space aur 'Enter' ko kaat dega
+raw_key = os.environ.get("NVIDIA_API_KEY", "")
+NVIDIA_API_KEY = raw_key.strip()
 
 def generate_story_and_prompt():
     print("Step 1: Generating Story and Prompt via NVIDIA API...")
@@ -26,7 +28,7 @@ def generate_story_and_prompt():
     if response.status_code == 200:
         result = response.json()['choices'][0]['message']['content']
         print("Generated Output:\n", result)
-        # Placeholder data for testing the pipeline
+        # Testing pipeline ke liye static data
         dialogue = "Yaar, mujhe ubalne se pehle thoda sone do!"
         video_prompt = "A 3D Pixar style cute potato sleeping on a sofa, cinematic lighting, highly detailed."
         return dialogue, video_prompt
@@ -42,7 +44,6 @@ def generate_audio(text):
 
 def generate_video(prompt):
     print("Step 3: Generating Video...")
-    # Creating a 5-second blank video as placeholder using FFmpeg to test automation
     os.system("ffmpeg -y -f lavfi -i color=c=blue:s=1280x720:d=5 -c:v libx264 temp_video.mp4")
     print("Video generation simulated (temp_video.mp4 created).")
     return "temp_video.mp4"
@@ -55,7 +56,7 @@ def merge_audio_video(video_file, audio_file):
 
 if __name__ == "__main__":
     if not NVIDIA_API_KEY:
-        print("Error: NVIDIA_API_KEY not found in environment variables.")
+        print("Error: NVIDIA_API_KEY not found. Please set the secret.")
         exit(1)
         
     dialogue, prompt = generate_story_and_prompt()
