@@ -2,9 +2,9 @@ import os
 import requests
 from gtts import gTTS
 
-# Yahan .strip() laga diya hai, jo apne aap extra space aur 'Enter' ko kaat dega
+# Super Filter: Har tarah ke hidden space aur Enter (\n, \r) ko kaat dega
 raw_key = os.environ.get("NVIDIA_API_KEY", "")
-NVIDIA_API_KEY = raw_key.strip()
+NVIDIA_API_KEY = raw_key.replace('\n', '').replace('\r', '').replace(' ', '').strip()
 
 def generate_story_and_prompt():
     print("Step 1: Generating Story and Prompt via NVIDIA API...")
@@ -56,7 +56,7 @@ def merge_audio_video(video_file, audio_file):
 
 if __name__ == "__main__":
     if not NVIDIA_API_KEY:
-        print("Error: NVIDIA_API_KEY not found. Please set the secret.")
+        print("Error: NVIDIA_API_KEY not found in environment variables.")
         exit(1)
         
     dialogue, prompt = generate_story_and_prompt()
