@@ -2,9 +2,30 @@ import requests
 import json
 
 def get_script(topic, gemini_key):
-    # The Ultimate Brahmastra: 'gemini-pro' model jo hamesha v1beta par chalta hai
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={gemini_key}"
     headers = {'Content-Type': 'application/json'}
+    
+    # ---------------------------------------------------------
+    # THE SMART ENGINE: Google se auto-detect karo working model
+    # ---------------------------------------------------------
+    working_model = "models/gemini-1.5-flash" # Backup default
+    try:
+        list_url = f"https://generativelanguage.googleapis.com/v1beta/models?key={gemini_key}"
+        list_resp = requests.get(list_url).json()
+        
+        if 'models' in list_resp:
+            for m in list_resp['models']:
+                # Aisa model dhoondho jo text generate kar sake
+                if 'generateContent' in m.get('supportedGenerationMethods', []):
+                    working_model = m['name']
+                    break # Pehla working model milte hi lock kar do
+        print(f"🔍 Smart Engine ne yeh model auto-select kiya hai: {working_model}")
+    except Exception as e:
+        print(f"⚠️ Auto-detect error (using default): {e}")
+
+    # ---------------------------------------------------------
+    # CONTENT GENERATION (Using auto-detected model)
+    # ---------------------------------------------------------
+    url = f"https://generativelanguage.googleapis.com/v1beta/{working_model}:generateContent?key={gemini_key}"
     
     prompt = f"Write a short, funny 2-line Hindi voiceover script about '{topic}' for an Instagram reel. Also, write a 1-line English prompt to generate a highly detailed, realistic, cinematic 4k image matching the topic. Format output EXACTLY like this:\nHINDI_SCRIPT: [Hindi text]\nIMAGE_PROMPT: [English prompt]"
     
@@ -16,7 +37,7 @@ def get_script(topic, gemini_key):
         response = requests.post(url, headers=headers, json=payload)
         data = response.json()
         
-        # Super Loudspeaker: Agar Gemini error dega toh exact reason print karega
+        # Super Loudspeaker
         if 'candidates' not in data:
             print(f"❌ Gemini API ERROR RESPONSE: {data}")
             return None, None
