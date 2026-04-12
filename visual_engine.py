@@ -1,8 +1,8 @@
 import requests
 
 def make_image(prompt, hf_key):
-    # Ekdum sahi aur standard Hugging Face Inference URL
-    API_URL = "https://api-inference.huggingface.co/models/runwayml/stable-diffusion-v1-5"
+    # Asli Router API URL (Hugging Face ka naya permanent standard)
+    API_URL = "https://router.huggingface.co/hf-inference/models/runwayml/stable-diffusion-v1-5"
     headers = {"Authorization": f"Bearer {hf_key}"}
     
     payload = {"inputs": prompt + ", cinematic lighting, highly detailed, photorealistic, 4k resolution"}
@@ -17,7 +17,7 @@ def make_image(prompt, hf_key):
             print("✅ Photo successfully ban gayi: temp_image.png")
             return "temp_image.png"
         elif response.status_code == 503:
-            print("⏳ Server par model load ho raha hai... 1-2 minute baad GitHub Actions mein dobara 'Run workflow' dabana.")
+            print("⏳ Server par model load ho raha hai... 1 minute baad dobara workflow run karo.")
             return None
         else:
             print(f"❌ Visual Engine Error: {response.status_code} - {response.text}")
@@ -25,4 +25,3 @@ def make_image(prompt, hf_key):
     except Exception as e:
         print(f"❌ Visual Engine Crash: {e}")
         return None
-
