@@ -6,7 +6,6 @@ def get_script(topic, gemini_key):
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_key}"
     headers = {'Content-Type': 'application/json'}
     
-    # Prompt jisme hum Hindi script aur English Image Prompt mang rahe hain
     prompt = f"Write a short, funny 2-line Hindi voiceover script about '{topic}' for an Instagram reel. Also, write a 1-line English prompt to generate a highly detailed, realistic, cinematic 4k image matching the topic. Format output EXACTLY like this:\nHINDI_SCRIPT: [Hindi text]\nIMAGE_PROMPT: [English prompt]"
     
     payload = {
@@ -16,6 +15,12 @@ def get_script(topic, gemini_key):
     try:
         response = requests.post(url, headers=headers, json=payload)
         data = response.json()
+        
+        # Super Loudspeaker: Agar Gemini error dega toh kya dega
+        if 'candidates' not in data:
+            print(f"❌ Gemini API ERROR RESPONSE: {data}")
+            return None, None
+            
         text_response = data['candidates'][0]['content']['parts'][0]['text']
         
         hindi_script = ""
@@ -30,5 +35,5 @@ def get_script(topic, gemini_key):
         return hindi_script, image_prompt
         
     except Exception as e:
-        print(f"❌ Brain Engine Error: {e}")
+        print(f"❌ Brain Engine System Error: {e}")
         return None, None
