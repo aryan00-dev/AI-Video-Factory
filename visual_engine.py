@@ -1,12 +1,11 @@
 import requests
 
 def make_image(prompt, hf_key):
-    # Naya Updated Hugging Face Router API URL
-    API_URL = "https://router.huggingface.co/hf-inference/models/stabilityai/stable-diffusion-xl-base-1.0"
+    # CORRECT & UPDATED ROUTER URL
+    API_URL = "https://router.huggingface.co/hf-inference/models/runwayml/stable-diffusion-v1-5"
     headers = {"Authorization": f"Bearer {hf_key}"}
     
-    # Prompt ko aur accha banane ke liye keywords jod rahe hain
-    payload = {"inputs": prompt + ", 4k, cinematic lighting, highly detailed, photorealistic"}
+    payload = {"inputs": prompt + ", cinematic lighting, highly detailed, photorealistic, 4k resolution"}
     
     try:
         print("📸 Hugging Face ko photo banane ka order ja raha hai...")
@@ -15,8 +14,12 @@ def make_image(prompt, hf_key):
         if response.status_code == 200:
             with open("temp_image.png", "wb") as f:
                 f.write(response.content)
-            print("✅ 4K Photo successfully ban gayi: temp_image.png")
+            print("✅ Photo successfully ban gayi: temp_image.png")
             return "temp_image.png"
+        # Handling Model Loading (503)
+        elif response.status_code == 503:
+            print("⏳ Model load ho raha hai... 1 minute baad dobara Run Workflow dabana.")
+            return None
         else:
             print(f"❌ Visual Engine Error: {response.status_code} - {response.text}")
             return None
