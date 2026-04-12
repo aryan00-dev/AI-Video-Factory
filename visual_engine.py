@@ -1,18 +1,25 @@
-import fal_client, requests
+import requests
 
-def make_video(prompt):
-    print("Generating 3D Video via Fal.ai (Luma)...")
+def make_image(prompt, hf_key):
+    # Hugging Face Stable Diffusion XL (Free 4K Image API)
+    API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0"
+    headers = {"Authorization": f"Bearer {hf_key}"}
+    
+    # Prompt ko aur accha banane ke liye keywords jod rahe hain
+    payload = {"inputs": prompt + ", 4k, cinematic lighting, highly detailed, photorealistic"}
+    
     try:
-        handler = fal_client.submit(
-            "fal-ai/luma-dream-machine",
-            arguments={"prompt": prompt, "aspect_ratio": "9:16"}
-        )
-        url = handler.get()['video']['url']
-        vid_data = requests.get(url).content
-        with open("temp_video.mp4", "wb") as f:
-            f.write(vid_data)
-        return "temp_video.mp4"
+        print("📸 Hugging Face ko photo banane ka order ja raha hai...")
+        response = requests.post(API_URL, headers=headers, json=payload)
+        
+        if response.status_code == 200:
+            with open("temp_image.png", "wb") as f:
+                f.write(response.content)
+            print("✅ 4K Photo successfully ban gayi: temp_image.png")
+            return "temp_image.png"
+        else:
+            print(f"❌ Visual Engine Error: {response.status_code} - {response.text}")
+            return None
     except Exception as e:
-        print(f"Visual Engine Error: {e}")
+        print(f"❌ Visual Engine Crash: {e}")
         return None
-
