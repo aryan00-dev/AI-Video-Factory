@@ -1,28 +1,34 @@
-import os, requests, re
+import requests
+import json
 
-def get_script(context, key):
-    url = "https://integrate.api.nvidia.com/v1/chat/completions"
-    headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
+def get_script(topic, gemini_key):
+    # Gemini API URL
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_key}"
+    headers = {'Content-Type': 'application/json'}
     
-    # Direct instruction for viral script
-    instruction = (
-        f"Context: {context}. Write a viral Instagram reel script. "
-        "Return EXACTLY 2 lines. Line 1: Funny/Emotional Hindi dialogue. "
-        "Line 2: Descriptive English prompt for 3D Pixar-style video."
-    )
+    # Prompt jisme hum Hindi script aur English Image Prompt mang rahe hain
+    prompt = f"Write a short, funny 2-line Hindi voiceover script about '{topic}' for an Instagram reel. Also, write a 1-line English prompt to generate a highly detailed, realistic, cinematic 4k image matching the topic. Format output EXACTLY like this:\nHINDI_SCRIPT: [Hindi text]\nIMAGE_PROMPT: [English prompt]"
     
     payload = {
-        "model": "meta/llama3-70b-instruct",
-        "messages": [{"role": "user", "content": instruction}],
-        "temperature": 0.7
+        "contents": [{"parts": [{"text": prompt}]}]
     }
     
-    response = requests.post(url, headers=headers, json=payload)
-    if response.status_code == 200:
-        content = response.json()['choices'][0]['message']['content'].strip().split('\n')
-        dialogue = re.sub(r'^(Line \d+: |Dialogue: )', '', content[0])
-        prompt = re.sub(r'^(Line \d+: |Prompt: )', '', content[1])
-        return dialogue, prompt
-    else:
-        print(f"Brain Engine Error: {response.status_code}")
+    try:
+        response = requests.post(url, headers=headers, json=payload)
+        data = response.json()
+        text_response = data['candidates'][0]['content']['parts'][0]['text']
+        
+        hindi_script = ""
+        image_prompt = ""
+        
+        for line in text_response.split('\n'):
+            if line.startswith("HINDI_SCRIPT:"):
+                hindi_script = line.replace("HINDI_SCRIPT:", "").strip()
+            elif line.startswith("IMAGE_PROMPT:"):
+                image_prompt = line.replace("IMAGE_PROMPT:", "").strip()
+                
+        return hindi_script, image_prompt
+        
+    except Exception as e:
+        print(f"❌ Brain Engine Error: {e}")
         return None, None
