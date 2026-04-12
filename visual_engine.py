@@ -1,8 +1,8 @@
 import requests
 
 def make_image(prompt, hf_key):
-    # Hugging Face Stable Diffusion XL (Free 4K Image API)
-    API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0"
+    # Naya Updated Hugging Face Router API URL
+    API_URL = "https://router.huggingface.co/hf-inference/models/stabilityai/stable-diffusion-xl-base-1.0"
     headers = {"Authorization": f"Bearer {hf_key}"}
     
     # Prompt ko aur accha banane ke liye keywords jod rahe hain
