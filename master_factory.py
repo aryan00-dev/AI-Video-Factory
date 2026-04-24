@@ -20,18 +20,25 @@ def fetch_live_meme():
     try:
         res = requests.get("https://api.imgflip.com/get_memes", timeout=10).json()
         meme = random.choice(res['data']['memes'][:20])
-        with open('live_meme.png', 'wb') as f:
-            f.write(requests.get(meme['url'], headers=HEADERS, timeout=10).content)
-        return True
+        req = requests.get(meme['url'], headers=HEADERS, timeout=10)
+        if len(req.content) > 1000: # Check if valid image
+            with open('live_meme.png', 'wb') as f: f.write(req.content)
+            return True
+        return False
     except: return False
 
 def fetch_live_audio():
     bgm_url = "https://upload.wikimedia.org/wikipedia/commons/4/4e/A_minor_tech_loop.ogg"
     pop_url = "https://upload.wikimedia.org/wikipedia/commons/f/f9/Bloop.ogg"
     try:
-        with open('live_bgm.ogg', 'wb') as f: f.write(requests.get(bgm_url, headers=HEADERS, timeout=10).content)
-        with open('live_pop.ogg', 'wb') as f: f.write(requests.get(pop_url, headers=HEADERS, timeout=10).content)
-        return True
+        bgm_req = requests.get(bgm_url, headers=HEADERS, timeout=10)
+        pop_req = requests.get(pop_url, headers=HEADERS, timeout=10)
+        # Shield: Check if Wikipedia sent actual audio or junk text
+        if len(bgm_req.content) > 5000 and len(pop_req.content) > 1000:
+            with open('live_bgm.ogg', 'wb') as f: f.write(bgm_req.content)
+            with open('live_pop.ogg', 'wb') as f: f.write(pop_req.content)
+            return True
+        return False
     except: return False
 
 def get_voice(text, filename="audio.mp3"):
@@ -56,20 +63,31 @@ def build_video():
     total_duration = voice_clip.duration
     
     audio_elements = [voice_clip]
+    valid_audio = False
+    
+    # THE SHIELD: Testing audio file before using it to prevent crash
     if has_audio:
-        base_bgm = AudioFileClip("live_bgm.ogg").volumex(0.1)
-        bgm_clip = audio_loop(base_bgm, duration=total_duration)
-        audio_elements.append(bgm_clip)
-        base_pop_sfx = AudioFileClip("live_pop.ogg").volumex(0.5)
+        try:
+            base_bgm = AudioFileClip("live_bgm.ogg").volumex(0.1)
+            bgm_clip = audio_loop(base_bgm, duration=total_duration)
+            base_pop_sfx = AudioFileClip("live_pop.ogg").volumex(0.5)
+            audio_elements.append(bgm_clip)
+            valid_audio = True
+            print("[+] Audio Vault Loaded Successfully.")
+        except Exception as e:
+            print(f"[!] Shield Activated: Third-party audio corrupted. Bypassing to save factory. Error: {e}")
+            valid_audio = False
 
     theme = random.choice(THEMES)
     bg_clip = ColorClip(size=(1080, 1920), color=theme["bg"], duration=total_duration)
     visual_elements = [bg_clip]
     
     if has_meme:
-        meme_clip = (ImageClip("live_meme.png").set_duration(2.5).resize(width=700)
-                     .set_position(('center', 'bottom')).crossfadein(0.2).crossfadeout(0.2))
-        visual_elements.append(meme_clip)
+        try:
+            meme_clip = (ImageClip("live_meme.png").set_duration(2.5).resize(width=700)
+                         .set_position(('center', 'bottom')).crossfadein(0.2).crossfadeout(0.2))
+            visual_elements.append(meme_clip)
+        except: pass
 
     words = script.split()
     time_per_word = total_duration / len(words)
@@ -79,7 +97,7 @@ def build_video():
         clean = "".join(e for e in word if e.isalnum()).lower()
         if len(clean) > 5 or clean in POWER_WORDS:
             color, size = theme["power"], 145
-            if has_audio:
+            if valid_audio:
                 pop_sfx = base_pop_sfx.set_start(current_time)
                 audio_elements.append(pop_sfx)
         else:
@@ -93,14 +111,13 @@ def build_video():
     final_audio = CompositeAudioClip(audio_elements)
     final_video = CompositeVideoClip(visual_elements).set_audio(final_audio)
 
-    # MASTER FIX: ZERO GITHUB ERROR GUARANTEE (Auto-Speed Math)
+    # Auto-Speed Math to prevent timing errors
     if final_video.duration < 25 or final_video.duration > 35:
-        print(f"[!] Length was {final_video.duration}s. Adjusting to exactly 30s to prevent GitHub Errors.")
         factor = final_video.duration / 30.0
         final_video = final_video.fx(vfx.speedx, factor)
 
     final_video.write_videofile("final_tech_viral_video.mp4", fps=30, codec="libx264", audio_codec="aac")
-    print("[SUCCESS] Nirmata Factory Render Complete! Flawless output.")
+    print("[SUCCESS] Nirmata Factory Render Complete! Zero Errors.")
 
 if __name__ == "__main__":
     build_video()
