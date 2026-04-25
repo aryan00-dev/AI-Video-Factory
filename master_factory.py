@@ -1,6 +1,15 @@
 import os
 import random
 import requests
+import PIL.Image
+
+# ==========================================
+# THE PILLOW 10.0 CRASH FIX (MONKEY PATCH)
+# Isse ImageMagick aur MoviePy resize error permanently fix ho jayega.
+if not hasattr(PIL.Image, 'ANTIALIAS'):
+    PIL.Image.ANTIALIAS = PIL.Image.Resampling.LANCZOS
+# ==========================================
+
 from gtts import gTTS
 from moviepy.editor import *
 from moviepy.audio.fx.all import audio_loop
