@@ -27,7 +27,6 @@ BG_COLORS = [(220, 200, 255), (15, 45, 30), (245, 245, 235), (15, 25, 50)]
 def download_audio(url, filename):
     try:
         req = requests.get(url, headers=HEADERS, timeout=10)
-        # STRICT CHECK: Reject HTML or Text garbage
         if req.status_code == 200 and 'html' not in req.headers.get('Content-Type', '').lower() and 'text' not in req.headers.get('Content-Type', '').lower():
             with open(filename, 'wb') as f: f.write(req.content)
             return True
@@ -38,7 +37,6 @@ def fetch_and_record_website():
     print("[+] Deep Scan: Fetching Assets & Recording 16:9 Screen...")
     assets = {'meme': False, 'bgm': False, 'pop': False, 'whoosh': False, 'recording': False}
     
-    # 1. MEME ENGINE (With Fake PNG Shield)
     if os.path.exists('live_meme.png'):
         assets['meme'] = True
         print("[+] Boss's Custom Premium Meme detected.")
@@ -64,7 +62,6 @@ def fetch_and_record_website():
                     assets['meme'] = True
             except: pass
 
-    # THE FAKE PNG BOMB SHIELD: Forcing strict RGBA transparent format
     if assets['meme']:
         try:
             img = PIL.Image.open('live_meme.png')
@@ -73,7 +70,6 @@ def fetch_and_record_website():
         except Exception as e:
             print(f"[-] Image Lock Warning: {e}")
 
-    # 2. AUDIO ASSETS
     print("[+] Downloading Audio Assets...")
     bgm_url = "https://upload.wikimedia.org/wikipedia/commons/4/4e/A_minor_tech_loop.ogg"
     pop_url = "https://upload.wikimedia.org/wikipedia/commons/f/f9/Bloop.ogg"
@@ -83,7 +79,6 @@ def fetch_and_record_website():
     assets['pop'] = download_audio(pop_url, 'live_pop.ogg')
     assets['whoosh'] = download_audio(whoosh_url, 'live_whoosh.wav')
 
-    # 3. AI-POWERED EXACT URL FINDER (WITH REGEX SHIELD)
     try:
         with open("current_script.txt", "r", encoding="utf-8") as f:
             script_text = f.read()
@@ -94,9 +89,10 @@ def fetch_and_record_website():
         
         tool_url = "https://www.google.com" 
         try:
+            # THE FIX: Upgraded to Groq's active fast model
             res = client.chat.completions.create(
                 messages=[{"role": "user", "content": prompt}],
-                model="llama3-8b-8192"
+                model="llama-3.1-8b-instant" 
             )
             raw_ai_output = res.choices[0].message.content.strip()
             
@@ -138,7 +134,6 @@ def get_voice(text, filename="audio.mp3"):
     use_fallback = True
     try:
         res = requests.post(API_URL, headers={"Authorization": f"Bearer {HF_KEY}"}, json={"inputs": text}, timeout=15)
-        # THE AUDIO CRASH FIX: Only process if it's an actual audio stream
         if res.status_code == 200 and ('audio' in res.headers.get('Content-Type', '').lower() or 'mpeg' in res.headers.get('Content-Type', '').lower() or 'flac' in res.headers.get('Content-Type', '').lower()):
             with open(filename, 'wb') as f: f.write(res.content)
             use_fallback = False
