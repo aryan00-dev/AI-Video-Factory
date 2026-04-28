@@ -6,17 +6,15 @@ import urllib.parse
 import requests
 import PIL.Image
 
+# PILLOW CRASH FIX (Monkey Patching)
 if not hasattr(PIL.Image, 'ANTIALIAS'):
     PIL.Image.ANTIALIAS = PIL.Image.Resampling.LANCZOS
 
-from gtts import gTTS
 from moviepy.editor import *
 from moviepy.audio.fx.all import audio_loop
 from playwright.sync_api import sync_playwright
-from duckduckgo_search import DDGS
 from groq import Groq 
 
-HF_KEY = os.environ.get("HUGGINGFACE_KEY")
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 HEADERS = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
 POWER_WORDS = ["ai", "free", "khatarnak", "secret", "hack", "website", "illegal", "viral", "chatgpt", "ruko", "tool", "crazy", "dimaag"]
@@ -25,7 +23,7 @@ BG_COLORS = [(220, 200, 255), (15, 45, 30), (245, 245, 235), (15, 25, 50)]
 def download_audio(url, filename):
     try:
         req = requests.get(url, headers=HEADERS, timeout=10)
-        if req.status_code == 200 and 'html' not in req.headers.get('Content-Type', '').lower() and 'text' not in req.headers.get('Content-Type', '').lower():
+        if req.status_code == 200 and 'html' not in req.headers.get('Content-Type', '').lower():
             with open(filename, 'wb') as f: f.write(req.content)
             return True
     except: pass
@@ -34,13 +32,11 @@ def download_audio(url, filename):
 def get_vault_asset(pattern):
     files = glob.glob(pattern)
     if files:
-        selected = random.choice(files)
-        print(f"[+] Vault Engine selected: {selected}")
-        return selected
+        return random.choice(files)
     return None
 
 def fetch_and_record_website():
-    print("[+] Deep Scan: Scanning Local Vault & Recording Stealth Screen...")
+    print("[+] Deep Scan: Scanning Local Vault & Recording Google Search...")
     assets = {'meme': None, 'bgm': None, 'pop': None, 'type_sfx': False, 'reveal_sfx': False, 'recording': False}
     
     assets['meme'] = get_vault_asset("assets/*.png") or get_vault_asset("assets/*.jpeg") or get_vault_asset("assets/*.jpg")
@@ -52,8 +48,7 @@ def fetch_and_record_website():
             img = PIL.Image.open(assets['meme']).convert("RGBA")
             img.save("temp_meme.png", format="PNG") 
             assets['meme'] = "temp_meme.png"
-        except Exception as e:
-            print(f"[-] Image Lock Warning: {e}")
+        except: pass
 
     type_sfx_url = "https://upload.wikimedia.org/wikipedia/commons/2/23/Keyboard_Type.ogg"
     reveal_sfx_url = "https://upload.wikimedia.org/wikipedia/commons/a/aa/A_major_tech_stinger.ogg"
@@ -64,21 +59,21 @@ def fetch_and_record_website():
         with open("current_script.txt", "r", encoding="utf-8") as f:
             script_text = f.read()
         
-        client = Groq(api_key=GROQ_API_KEY)
-        prompt = f"Read this Hindi tech script. Identify the main AI tool being promoted. Return ONLY its official name. Return absolutely nothing else. Script: {script_text}"
-        
         tool_name = "AI Tool official" 
         try:
-            res = client.chat.completions.create(
-                messages=[{"role": "user", "content": prompt}],
-                model="llama-3.1-8b-instant"
-            )
-            extracted_output = res.choices[0].message.content.strip()
-            tool_name = re.sub(r'[^a-zA-Z0-9\s-]', '', extracted_output).strip()
+            if GROQ_API_KEY:
+                client = Groq(api_key=GROQ_API_KEY)
+                prompt = f"Read this Hindi tech script. Identify the main AI tool being promoted. Return ONLY its official name. Return absolutely nothing else. Script: {script_text}"
+                res = client.chat.completions.create(
+                    messages=[{"role": "user", "content": prompt}],
+                    model="llama-3.1-8b-instant"
+                )
+                extracted_output = res.choices[0].message.content.strip()
+                tool_name = re.sub(r'[^a-zA-Z0-9\s-]', '', extracted_output).strip()
         except: pass
             
-        query = urllib.parse.quote(f"{tool_name} AI tool official website")
-        tool_url = f"https://duckduckgo.com/?q={query}"
+        query = urllib.parse.quote(f"{tool_name} AI tool")
+        tool_url = f"https://www.google.com/search?q={query}" 
                 
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True)
@@ -90,13 +85,13 @@ def fetch_and_record_website():
             )
             page = context.new_page()
             try:
-                page.goto(tool_url, wait_until="domcontentloaded", timeout=15000)
+                page.goto(tool_url, wait_until="networkidle", timeout=15000)
             except: pass 
             
             page.wait_for_timeout(2000)
             page.mouse.wheel(0, 400) 
             page.wait_for_timeout(2000)
-            page.mouse.wheel(0, 200)
+            page.mouse.wheel(0, -100)
             page.wait_for_timeout(1000)
             
             video_path = page.video.path()
@@ -106,21 +101,16 @@ def fetch_and_record_website():
             assets['recording'] = True
     except Exception as e:
         print(f"[-] Stealth Recording Failed: {e}")
-        exit(1)
     return assets
 
 def get_voice(text, filename="audio.mp3"):
-    API_URL = "https://api-inference.huggingface.co/models/facebook/mms-tts-hin"
-    use_fallback = True
+    print("[+] Generating Premium Human Voice via Edge-TTS...")
     try:
-        headers = {"Authorization": f"Bearer {HF_KEY}"}
-        res = requests.post(API_URL, headers=headers, json={"inputs": text}, timeout=15)
-        if res.status_code == 200 and ('audio' in res.headers.get('Content-Type', '').lower() or 'mpeg' in res.headers.get('Content-Type', '').lower() or 'flac' in res.headers.get('Content-Type', '').lower()):
-            with open(filename, 'wb') as f: f.write(res.content)
-            use_fallback = False
-    except: pass
-    
-    if use_fallback:
+        safe_text = text.replace("'", "").replace('"', '').replace("\n", " ")
+        os.system(f'edge-tts --voice hi-IN-SwaraNeural --text "{safe_text}" --write-media {filename}')
+    except Exception as e:
+        print(f"[-] Edge-TTS failed: {e}")
+        from gtts import gTTS
         gTTS(text=text, lang='hi', slow=False).save(filename)
 
 def build_video():
@@ -129,7 +119,9 @@ def build_video():
         script = f.read().strip()
         
     get_voice(script, "audio.mp3")
-    voice_clip = AudioFileClip("audio.mp3")
+    
+    # BOOSTING MAIN VOICE VOLUME TO 120%
+    voice_clip = AudioFileClip("audio.mp3").volumex(1.2)
     total_duration = voice_clip.duration
     audio_elements = [voice_clip]
     
@@ -142,7 +134,7 @@ def build_video():
     base_type_sfx = None
     if assets['type_sfx']:
         try:
-            base_type_sfx = AudioFileClip("live_type.ogg").volumex(1.0).loop()
+            base_type_sfx = AudioFileClip("live_type.ogg").volumex(0.8).loop()
         except: pass
 
     visual_elements = []
@@ -190,7 +182,7 @@ def build_video():
         
         if assets['reveal_sfx']:
             try:
-                audio_elements.append(AudioFileClip("live_reveal.ogg").volumex(1.0).set_start(REVEAL_TIME))
+                audio_elements.append(AudioFileClip("live_reveal.ogg").volumex(0.8).set_start(REVEAL_TIME))
             except: pass
 
     if assets['meme']:
@@ -238,9 +230,10 @@ def build_video():
         visual_elements.append(txt_static.resize(lambda t: bouncy_ease(t) / txt_static.size[0]).set_position(txt_position).set_start(current_time).set_duration(time_per_word))
         current_time += time_per_word
         
+    # THE FIX: BGM locked to exactly 20%
     if assets['bgm']:
         try:
-            audio_elements.append(audio_loop(AudioFileClip(assets['bgm']).volumex(0.38), duration=total_duration))
+            audio_elements.append(audio_loop(AudioFileClip(assets['bgm']).volumex(0.20), duration=total_duration))
         except: pass
 
     final_audio = CompositeAudioClip(audio_elements)
@@ -251,3 +244,4 @@ def build_video():
 
 if __name__ == "__main__":
     build_video()
+        
