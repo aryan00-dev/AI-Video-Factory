@@ -6,13 +6,15 @@ import urllib.parse
 import requests
 import PIL.Image
 
-# PILLOW CRASH FIX (Monkey Patching)
+# PILLOW CRASH FIX
 if not hasattr(PIL.Image, 'ANTIALIAS'):
     PIL.Image.ANTIALIAS = PIL.Image.Resampling.LANCZOS
 
 from moviepy.editor import *
 from moviepy.audio.fx.all import audio_loop
 from playwright.sync_api import sync_playwright
+# THE CAPTCHA KILLER
+from playwright_stealth import stealth_sync
 from groq import Groq 
 
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
@@ -36,7 +38,7 @@ def get_vault_asset(pattern):
     return None
 
 def fetch_and_record_website():
-    print("[+] Deep Scan: Scanning Local Vault & Recording Google Search...")
+    print("[+] Deep Scan: Scanning Local Vault & Recording Stealth Search...")
     assets = {'meme': None, 'bgm': None, 'pop': None, 'type_sfx': False, 'reveal_sfx': False, 'recording': False}
     
     assets['meme'] = get_vault_asset("assets/*.png") or get_vault_asset("assets/*.jpeg") or get_vault_asset("assets/*.jpg")
@@ -72,8 +74,9 @@ def fetch_and_record_website():
                 tool_name = re.sub(r'[^a-zA-Z0-9\s-]', '', extracted_output).strip()
         except: pass
             
+        # THE FIX: Bing Search instead of Google to avoid Datacenter IP blocking
         query = urllib.parse.quote(f"{tool_name} AI tool")
-        tool_url = f"https://www.google.com/search?q={query}" 
+        tool_url = f"https://www.bing.com/search?q={query}" 
                 
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True)
@@ -84,6 +87,10 @@ def fetch_and_record_website():
                 viewport={"width": 1280, "height": 720}
             )
             page = context.new_page()
+            
+            # THE FIX: Engaging Stealth Mode to Kill CAPTCHA
+            stealth_sync(page)
+            
             try:
                 page.goto(tool_url, wait_until="networkidle", timeout=15000)
             except: pass 
@@ -120,7 +127,6 @@ def build_video():
         
     get_voice(script, "audio.mp3")
     
-    # BOOSTING MAIN VOICE VOLUME TO 120%
     voice_clip = AudioFileClip("audio.mp3").volumex(1.2)
     total_duration = voice_clip.duration
     audio_elements = [voice_clip]
@@ -131,10 +137,11 @@ def build_video():
             base_pop_sfx = AudioFileClip(assets['pop']).volumex(0.8)
         except: pass
 
+    # AUDIO BUG FIX: Load typing sound properly
     base_type_sfx = None
     if assets['type_sfx']:
         try:
-            base_type_sfx = AudioFileClip("live_type.ogg").volumex(0.8).loop()
+            base_type_sfx = AudioFileClip("live_type.ogg").volumex(0.8)
         except: pass
 
     visual_elements = []
@@ -148,6 +155,10 @@ def build_video():
     visual_elements.append(ColorClip(size=CANVAS_SIZE, color=(0, 0, 0)).set_duration(total_duration))
 
     REVEAL_TIME = 2.8 
+
+    # AUDIO BUG FIX: Play typing sound ONLY ONCE during the hook phase
+    if base_type_sfx:
+        audio_elements.append(audio_loop(base_type_sfx, duration=REVEAL_TIME).set_start(0))
 
     for i in range(int(total_duration // 3.5) + 2):
         c = BG_COLORS[i % len(BG_COLORS)]
@@ -211,10 +222,11 @@ def build_video():
         if current_time < REVEAL_TIME:
             txt_position = ('center', CANVAS_SIZE[1] // 2 - 150)
             txt_static = (TextClip(word, fontsize=f_size + 20, color=color, stroke_color='black', stroke_width=6, font='DejaVuSans-Bold', method='caption', size=(1000, None)))
-            if base_type_sfx: audio_elements.append(base_type_sfx.set_start(current_time).set_duration(time_per_word))
         else:
             txt_position = ('center', text_y_pos_final)
             txt_static = (TextClip(word, fontsize=f_size, color=color, stroke_color='black', stroke_width=6, font='DejaVuSans-Bold', method='caption', size=(920, None)))
+            
+            # POP SOUND FIX: Plays only during the main reveal phase
             if base_pop_sfx: audio_elements.append(base_pop_sfx.set_start(current_time))
         
         def bouncy_ease(t):
@@ -230,7 +242,6 @@ def build_video():
         visual_elements.append(txt_static.resize(lambda t: bouncy_ease(t) / txt_static.size[0]).set_position(txt_position).set_start(current_time).set_duration(time_per_word))
         current_time += time_per_word
         
-    # THE FIX: BGM locked to exactly 20%
     if assets['bgm']:
         try:
             audio_elements.append(audio_loop(AudioFileClip(assets['bgm']).volumex(0.20), duration=total_duration))
@@ -244,4 +255,3 @@ def build_video():
 
 if __name__ == "__main__":
     build_video()
-        
