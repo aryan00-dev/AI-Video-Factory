@@ -13,7 +13,6 @@ if not hasattr(PIL.Image, 'ANTIALIAS'):
 from moviepy.editor import *
 from moviepy.audio.fx.all import audio_loop
 from playwright.sync_api import sync_playwright
-# THE CAPTCHA KILLER
 from playwright_stealth import stealth_sync
 from groq import Groq 
 
@@ -38,7 +37,7 @@ def get_vault_asset(pattern):
     return None
 
 def fetch_and_record_website():
-    print("[+] Deep Scan: Scanning Local Vault & Recording Stealth Search...")
+    print("[+] Deep Scan: Fetching Assets & Strict Bing Search Recording...")
     assets = {'meme': None, 'bgm': None, 'pop': None, 'type_sfx': False, 'reveal_sfx': False, 'recording': False}
     
     assets['meme'] = get_vault_asset("assets/*.png") or get_vault_asset("assets/*.jpeg") or get_vault_asset("assets/*.jpg")
@@ -61,22 +60,23 @@ def fetch_and_record_website():
         with open("current_script.txt", "r", encoding="utf-8") as f:
             script_text = f.read()
         
-        tool_name = "AI Tool official" 
+        tool_name = "AI Tool" 
         try:
             if GROQ_API_KEY:
                 client = Groq(api_key=GROQ_API_KEY)
-                prompt = f"Read this Hindi tech script. Identify the main AI tool being promoted. Return ONLY its official name. Return absolutely nothing else. Script: {script_text}"
+                # THE FIX: Forcing strictly English output for the tool name so Regex doesn't delete it
+                prompt = f"Read this tech script. Identify the main AI tool being promoted. Return ONLY its official English name (e.g. Qwen, Luma Labs). Return absolutely nothing else. Script: {script_text}"
                 res = client.chat.completions.create(
                     messages=[{"role": "user", "content": prompt}],
                     model="llama-3.1-8b-instant"
                 )
-                extracted_output = res.choices[0].message.content.strip()
-                tool_name = re.sub(r'[^a-zA-Z0-9\s-]', '', extracted_output).strip()
+                tool_name = re.sub(r'[^a-zA-Z0-9\s-]', '', res.choices[0].message.content.strip()).strip()
         except: pass
             
-        # THE FIX: Bing Search instead of Google to avoid Datacenter IP blocking
         query = urllib.parse.quote(f"{tool_name} AI tool")
-        tool_url = f"https://www.bing.com/search?q={query}" 
+        tool_url = f"https://www.bing.com/search?q={query}"
+        
+        print(f"[+] Strict Stealth Target URL: {tool_url}")
                 
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True)
@@ -88,12 +88,21 @@ def fetch_and_record_website():
             )
             page = context.new_page()
             
-            # THE FIX: Engaging Stealth Mode to Kill CAPTCHA
             stealth_sync(page)
             
-            try:
-                page.goto(tool_url, wait_until="networkidle", timeout=15000)
-            except: pass 
+            print("[+] Opening Stealth Search...")
+            response = page.goto(tool_url, wait_until="domcontentloaded", timeout=15000)
+            
+            if not response or not response.ok:
+                print(f"[-] ERROR: Website ({tool_url}) refused to open.")
+                print("[-] STRICT KILL SWITCH ACTIVATED. Stopping Factory.")
+                exit(1)
+                
+            page_title = page.title().lower()
+            if "cloudflare" in page_title or "just a moment" in page_title or "robot" in page_title or "captcha" in page_title:
+                print("[-] ERROR: Bot Protection blocked the website.")
+                print("[-] STRICT KILL SWITCH ACTIVATED. Stopping Factory.")
+                exit(1)
             
             page.wait_for_timeout(2000)
             page.mouse.wheel(0, 400) 
@@ -106,15 +115,22 @@ def fetch_and_record_website():
             browser.close()
             os.rename(video_path, 'live_web_recording.mp4')
             assets['recording'] = True
+            
     except Exception as e:
-        print(f"[-] Stealth Recording Failed: {e}")
+        print(f"[-] Fatal Error during website fetch: {e}")
+        print("[-] STRICT KILL SWITCH ACTIVATED. Video generation stopped.")
+        exit(1)
+        
     return assets
 
 def get_voice(text, filename="audio.mp3"):
     print("[+] Generating Premium Human Voice via Edge-TTS...")
     try:
-        safe_text = text.replace("'", "").replace('"', '').replace("\n", " ")
-        os.system(f'edge-tts --voice hi-IN-SwaraNeural --text "{safe_text}" --write-media {filename}')
+        os.system(f'edge-tts --voice hi-IN-SwaraNeural --rate=+15% -f current_script.txt --write-media {filename}')
+        
+        if not os.path.exists(filename) or os.path.getsize(filename) == 0:
+            raise Exception("Edge-TTS generated an empty audio file.")
+            
     except Exception as e:
         print(f"[-] Edge-TTS failed: {e}")
         from gtts import gTTS
@@ -127,7 +143,7 @@ def build_video():
         
     get_voice(script, "audio.mp3")
     
-    voice_clip = AudioFileClip("audio.mp3").volumex(1.2)
+    voice_clip = AudioFileClip("audio.mp3").volumex(1.5)
     total_duration = voice_clip.duration
     audio_elements = [voice_clip]
     
@@ -137,7 +153,6 @@ def build_video():
             base_pop_sfx = AudioFileClip(assets['pop']).volumex(0.8)
         except: pass
 
-    # AUDIO BUG FIX: Load typing sound properly
     base_type_sfx = None
     if assets['type_sfx']:
         try:
@@ -156,7 +171,6 @@ def build_video():
 
     REVEAL_TIME = 2.8 
 
-    # AUDIO BUG FIX: Play typing sound ONLY ONCE during the hook phase
     if base_type_sfx:
         audio_elements.append(audio_loop(base_type_sfx, duration=REVEAL_TIME).set_start(0))
 
@@ -226,7 +240,6 @@ def build_video():
             txt_position = ('center', text_y_pos_final)
             txt_static = (TextClip(word, fontsize=f_size, color=color, stroke_color='black', stroke_width=6, font='DejaVuSans-Bold', method='caption', size=(920, None)))
             
-            # POP SOUND FIX: Plays only during the main reveal phase
             if base_pop_sfx: audio_elements.append(base_pop_sfx.set_start(current_time))
         
         def bouncy_ease(t):
@@ -244,14 +257,14 @@ def build_video():
         
     if assets['bgm']:
         try:
-            audio_elements.append(audio_loop(AudioFileClip(assets['bgm']).volumex(0.20), duration=total_duration))
+            audio_elements.append(audio_loop(AudioFileClip(assets['bgm']).volumex(0.10), duration=total_duration))
         except: pass
 
     final_audio = CompositeAudioClip(audio_elements)
     final_video = CompositeVideoClip(visual_elements).set_audio(final_audio)
     
-    final_video.write_videofile("temp_video.mp4", fps=30, codec="libx264", audio_codec="aac")
-    os.system("ffmpeg -y -i temp_video.mp4 -filter_complex \"[0:v]setpts=0.8*PTS[v];[0:a]atempo=1.25[a]\" -map \"[v]\" -map \"[a]\" final_tech_viral_video.mp4")
+    print("[+] Rendering Final 30 FPS Masterpiece...")
+    final_video.write_videofile("final_tech_viral_video.mp4", fps=30, codec="libx264", audio_codec="aac")
 
 if __name__ == "__main__":
     build_video()
