@@ -32,7 +32,6 @@ jobs:
     - name: Install Python Libraries (Stealth & Pillow Locked)
       run: |
         python -m pip install --upgrade pip --break-system-packages
-        # THE FIX: Locked playwright-stealth to version 1.0.6 to kill the ImportError
         pip install google-generativeai requests gtts edge-tts pillow==9.5.0 moviepy==1.0.3 numpy==1.24.3 duckduckgo-search playwright playwright-stealth==1.0.6 groq --break-system-packages
         python -m playwright install chromium --with-deps
 
@@ -45,7 +44,9 @@ jobs:
     - name: Execute QC Bot
       run: python qc_bot.py
 
+    # THE FINAL FIX: if: always() ensures the video is saved even if the QC Bot rejects it!
     - name: Save Video to Artifacts
+      if: always() 
       uses: actions/upload-artifact@v4
       with:
         name: Final_Viral_Tech_Video
